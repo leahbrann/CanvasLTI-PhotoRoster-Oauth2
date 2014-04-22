@@ -3,68 +3,69 @@ require 'sinatra'
 require 'openssl'
 require 'json'
 require 'httparty'
+require 'sass'
+require 'rack-lti'
+require 'dotenv'
 
+Dotenv.load
 enable :sessions
 
-CANVAS_URL      = 'https://usfca.instructure.com'
+
+client = OAuth2::Client.new("#{ENV['CANVAS_ID']}", "#{ENV['CANVAS_KEY']}", :site => "#{ENV['CANVAS_URL']}", :authorize_url => "#{ENV['CANVAS_URL']}/l
+gin/oauth2/auth",
+      :token_url => "#{ENV['CANVAS_URL']}/login/oauth2/token")
 
 
-#redirect_uri = 'http://ltidev-c9-leahbrann.c9.io'
-redirect_uri = 'http://localhost:4567/oauth2callback'
-client = OAuth2::Client.new('***REMOVED***', '***REMOVED***', :site => CANVAS_URL, :authorize_url => "#{CANVAS_URL}/login/oauth2/auth",
-      :token_url => "#{CANVAS_URL}/login/oauth2/token")
+# User tokens are stored so that a user only needs to authorize once (except not yet)
+    @@token_cache = {}
 
- # User tokens are stored so that a user only needs to authorized this
-  # application once.
-  @@token_cache = {}
 
 get '/' do
-    erb :mindex
-end    
-
-get '/auth' do      
-redirect client.auth_code.authorize_url(:redirect_uri => redirect_uri)
+  erb :layout do
+      erb :mindex
+   end
 end
 
-# get '/oauth2callback' do
-#     # We make one more request to Canvas to exchange our temporary token for a
-#     # permanent user token.
-#     canvas_url = URI("#{site_path}/login/oauth2/token")
-#     response = Net::HTTP.post_form(canvas_url, client_id: '***REMOVED***', redirect_uri: redirect_uri, client_secret: '***REMOVED***', code: params[:code])
-#     # Once we have the token, we store it in @@token_cache so it can be reused.
-#     @@token_cache[session[:user]] = JSON.parse(response.body)['access_token']
-
-#     # Redirect to the index to launch the application.
-#     redirect '/success'
-#   end
-
+get '/auth' do
+redirect client.auth_code.authorize_url(:redirect_uri => "#{ENV['REDIRECT_URI']}")
+end
 
 get '/oauth2callback' do
-  access_token = client.auth_code.get_token(params[:code], :redirect_uri => redirect_uri)
+  access_token = client.auth_code.get_token(params[:code], :redirect_uri => "#{ENV['REDIRECT_URI']}")
   session[:access_token] = access_token.token
   @message = "Successfully authenticated with the server"
-  # Once we have the token, we store it in @@token_cache so it can be reused.
+
+  # TODO: implement token caching
   @@token_cache[session[:user]] = access_token.token
- 
-  #@access_token = session[:access_token]
- 
-  # parsed is a handy method on an OAuth2::Response object that will 
-  # intelligently try and parse the response.body
-  #@email = access_token.get('https://www.googleapis.com/userinfo/email?alt=json').parsed
-  redirect to '/success'
+
+ redirect to '/success'
 end
 
 get '/success' do
 
   @access_token = session[:access_token]
-  courses_api     = ("#{CANVAS_URL}/api/v1/courses?access_token=#{current_token}")
- 
+  courses_api     = ("#{ENV['CANVAS_URL']}/api/v1/courses?access_token=#{current_token}")
+
   canvas_response = HTTParty.get(courses_api)
   courses = canvas_response.parsed_response
   @coursestaught = courses.select{|course| course["enrollments"].flat_map{|x| x["type"]}.include? "teacher"}
 
     erb :success
-end    
+end
+
+get '/courses/:course_id' do
+   @course = "#{params[:course_id]}"
+   course_enrollment_api = ("#{ENV['CANVAS_URL']}/api/v1/courses/#{@course}/users?access_token=#{current_token}&enrollment_type=student")
+   @course_enrollments = HTTParty.get(course_enrollment_api)
+
+   erb :layout do
+      erb :course
+   end
+end
+
+get '/stylesheet.css' do
+  scss :'sass/stylesheet'
+end
 
 
  private
