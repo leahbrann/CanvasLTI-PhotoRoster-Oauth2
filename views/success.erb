@@ -1,6 +1,13 @@
+<section>
+
+<h1> Course Photo Roster </h1>
 
 <% @coursestaught.each do |course| %>
-<p><%= course["name"] %></p>
-<p><%= course["id"] %></p>
+
+<a href =
+<%= "courses/#{course["id"]}"  %> > <%= course["name"] %> </a>
+</p>
+
 
 <% end %>
+</section>
