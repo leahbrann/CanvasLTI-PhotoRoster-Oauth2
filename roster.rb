@@ -57,6 +57,7 @@ get '/courses/:course_id' do
    @course = "#{params[:course_id]}"
    course_enrollment_api = ("#{ENV['CANVAS_URL']}/api/v1/courses/#{@course}/users?access_token=#{current_token}&enrollment_type=student")
    @course_enrollments = HTTParty.get(course_enrollment_api)
+   @photos_path = "#{ENV['PHOTOS_PATH']}"
 
    erb :layout do
       erb :course
