@@ -1,44 +1,107 @@
 require 'oauth2'
 require 'sinatra'
-require 'openssl'
-require 'json'
 require 'httparty'
 require 'sass'
-require 'rack-lti'
 require 'dotenv'
+require 'data_mapper'
+require 'pry'
+require 'rack-lti'
 
 Dotenv.load
 enable :sessions
 
 
-client = OAuth2::Client.new("#{ENV['CANVAS_ID']}", "#{ENV['CANVAS_KEY']}", :site => "#{ENV['CANVAS_URL']}", :authorize_url => "#{ENV['CANVAS_URL']}/l
-gin/oauth2/auth",
+#DB config for storing user tokens
+#DataMapper.setup(:default, ENV['DATABASE_URL'] || 'postgres://localhost/mydb')
+#
+#class User
+#  include DataMapper::Resource
+#  property :id, Serial
+#  property :user_id, Integer
+#  property :access_token, String
+#end
+
+
+# In a real application, the following two values would be persistent. We'd
+  # also need to encrypt the user tokens, because they're as valuable as a
+  # password.
+
+  # OAuth nonces are stored so they cannot be replayed by a malicious user.
+  @@nonce_cache = []
+
+  # User tokens are stored so that a user only needs to authorized this
+  # application once.
+  @@token_cache = {}
+
+
+use Rack::LTI,
+    # Pass the consumer key and secret
+    consumer_key: "#{ENV['CONSUMER_KEY']}",
+    consumer_secret: "#{ENV['CONSUMER_SECRET']}",
+
+    # This is the URL to redirect to on a valid launch.
+    app_path: '/oauth/launch',
+
+    # This is the URL that hosts the tool's XML configuration.
+    config_path: '/lti/config.xml',
+
+    # This is the URL clients (e.g. Canvas) will POST launch requests to.
+    launch_path: '/lti/launch',
+
+    # A function for ensuring that our nonces are valid.
+    nonce_validator: ->(nonce) {
+      !@@nonce_cache.include?(nonce) && @@nonce_cache << nonce
+    },
+
+    # Fail request older than 1 hour.
+    time_limit: 3_600, # one hour
+
+    # On a successful launch, take the user's ID from the launch and store
+    # it in the session before redirecting.
+    success: ->(params, request, response) {
+      request.env['rack.session'][:user] = params['user_id']
+          },
+
+    # Use Instructure's course_navigation extension to display a link to
+    # the tool in Canvas' course navigation.
+    extensions: {
+      'canvas.instructure.com' => {
+        user_navigation: {
+          enabled: 'true',
+          text: 'Photo Roster'
+        }
+      }
+    },
+
+    # The title and description of the tool. Visible in the configuration.
+    title: 'Course Photo Roster',
+    description: <<-END
+Student photos for courses in which the user is a teacher.
+    END
+
+
+
+client = OAuth2::Client.new("#{ENV['CANVAS_ID']}", "#{ENV['CANVAS_KEY']}", :site => "#{ENV['CANVAS_URL']}", :authorize_url => "#{ENV['CANVAS_URL']}/login/oauth2/auth",
       :token_url => "#{ENV['CANVAS_URL']}/login/oauth2/token")
 
 
-# User tokens are stored so that a user only needs to authorize once (except not yet)
-    @@token_cache = {}
 
-
-get '/' do
-  erb :layout do
-      erb :mindex
-   end
-end
-
-get '/auth' do
-redirect client.auth_code.authorize_url(:redirect_uri => "#{ENV['REDIRECT_URI']}")
+get '/oauth/launch' do
+    if current_token
+      redirect '/success'
+    else
+      redirect client.auth_code.authorize_url(:redirect_uri => "#{ENV['REDIRECT_URI']}")
+    end
 end
 
 get '/oauth2callback' do
   access_token = client.auth_code.get_token(params[:code], :redirect_uri => "#{ENV['REDIRECT_URI']}")
   session[:access_token] = access_token.token
-  @message = "Successfully authenticated with the server"
+  
 
-  # TODO: implement token caching
   @@token_cache[session[:user]] = access_token.token
 
- redirect to '/success'
+  redirect to '/success'
 end
 
 get '/success' do
