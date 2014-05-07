@@ -1,6 +1,10 @@
 Proof of concept for basic photo roster integration with Canvas LMS
 
--Still needed: Oauth token caching, IMS-LTI integration
+Needs to be done before production use:
+	-Oauth nonce checking
+	-Access token encryption
+	-Basic error handling
+	-Gem grouping
 
 
-Structure heavily borrowed from https://github.com/zachpendleton/oauth_example
+Auth structure heavily borrowed from https://github.com/zachpendleton/oauth_example

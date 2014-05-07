@@ -11,30 +11,21 @@ Dotenv.load
 enable :sessions
 
 
-#DB config for storing user tokens
-#DataMapper.setup(:default, ENV['DATABASE_URL'] || 'postgres://localhost/mydb')
-#
-#class User
-#  include DataMapper::Resource
-#  property :id, Serial
-#  property :user_id, Integer
-#  property :access_token, String
-#end
+# #DB config for storing user tokens
+DataMapper.setup(:default, ENV['DATABASE_URL'] || 'postgres://localhost/mydb')
+DataMapper::Property::String.length(255)
 
+class User
+  include DataMapper::Resource
+  property :id, Serial, :key => false
+  property :user_id, String, :key => true 
+  property :access_token, String
+end
 
-# In a real application, the following two values would be persistent. We'd
-  # also need to encrypt the user tokens, because they're as valuable as a
-  # password.
+DataMapper.finalize
+DataMapper.auto_upgrade!
 
-  # OAuth nonces are stored so they cannot be replayed by a malicious user.
-  @@nonce_cache = []
-
-  # User tokens are stored so that a user only needs to authorized this
-  # application once.
-  @@token_cache = {}
-
-
-use Rack::LTI,
+ use Rack::LTI,
     # Pass the consumer key and secret
     consumer_key: "#{ENV['CONSUMER_KEY']}",
     consumer_secret: "#{ENV['CONSUMER_SECRET']}",
@@ -98,10 +89,12 @@ get '/oauth2callback' do
   access_token = client.auth_code.get_token(params[:code], :redirect_uri => "#{ENV['REDIRECT_URI']}")
   session[:access_token] = access_token.token
   
+  @newuser = User.new
+  @newuser.user_id = session[:user]
+  @newuser.access_token = access_token.token
+  @newuser.save
 
-  @@token_cache[session[:user]] = access_token.token
-
-  redirect to '/success'
+   redirect to '/success'
 end
 
 get '/success' do
@@ -136,5 +129,6 @@ end
 
   # Helper method to retrieve the current user's API token.
   def current_token
-    @@token_cache[session[:user]]
+    current_user = User.get(session[:user])
+    current_user.access_token    
   end
