@@ -4,7 +4,6 @@ Needs to be done before production use:
 	-Oauth nonce checking
 	-Access token encryption
 	-Basic error handling
-	-Gem grouping
 
 
 Auth structure heavily borrowed from https://github.com/zachpendleton/oauth_example

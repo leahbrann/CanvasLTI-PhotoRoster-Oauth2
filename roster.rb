@@ -24,6 +24,8 @@ end
 DataMapper.finalize
 DataMapper.auto_upgrade!
 
+@@nonce_cache = []
+
  use Rack::LTI,
     # Pass the consumer key and secret
     consumer_key: "#{ENV['CONSUMER_KEY']}",
@@ -77,7 +79,7 @@ client = OAuth2::Client.new("#{ENV['CANVAS_ID']}", "#{ENV['CANVAS_KEY']}", :site
 
 
 get '/oauth/launch' do
-    if current_token
+    if stored_user
       redirect '/success'
     else
       redirect client.auth_code.authorize_url(:redirect_uri => "#{ENV['REDIRECT_URI']}")
@@ -127,6 +129,10 @@ end
  private
 
   # Helper method to retrieve the current user's API token.
+  def stored_user
+    !User.get(session[:user]).nil?
+  end
+
   def current_token
     current_user = User.get(session[:user])
     current_user.access_token    
