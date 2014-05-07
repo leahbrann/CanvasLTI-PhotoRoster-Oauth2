@@ -4,7 +4,6 @@ require 'httparty'
 require 'sass'
 require 'dotenv'
 require 'data_mapper'
-require 'pry'
 require 'rack-lti'
 
 Dotenv.load
