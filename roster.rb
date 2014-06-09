@@ -8,6 +8,7 @@ require 'rack-lti'
 
 Dotenv.load
 enable :sessions
+set :protection, :except => :frame_options
 
 
 # #DB config for storing user tokens
@@ -24,8 +25,6 @@ end
 DataMapper.finalize
 DataMapper.auto_upgrade!
 
-@@nonce_cache = []
-
  use Rack::LTI,
     # Pass the consumer key and secret
     consumer_key: "#{ENV['CONSUMER_KEY']}",
@@ -39,11 +38,6 @@ DataMapper.auto_upgrade!
 
     # This is the URL clients (e.g. Canvas) will POST launch requests to.
     launch_path: '/lti/launch',
-
-    # A function for ensuring that our nonces are valid.
-    nonce_validator: ->(nonce) {
-      !@@nonce_cache.include?(nonce) && @@nonce_cache << nonce
-    },
 
     # Fail request older than 1 hour.
     time_limit: 3_600, # one hour
@@ -100,7 +94,6 @@ end
 
 get '/success' do
 
-  @access_token = session[:access_token]
   courses_api     = ("#{ENV['CANVAS_URL']}/api/v1/courses?access_token=#{current_token}")
 
   canvas_response = HTTParty.get(courses_api)
