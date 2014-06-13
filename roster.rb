@@ -74,7 +74,7 @@ client = OAuth2::Client.new("#{ENV['CANVAS_ID']}", "#{ENV['CANVAS_KEY']}", :site
 
 get '/oauth/launch' do
     if stored_user
-      redirect '/success'
+      redirect '/courses'
     else
       redirect client.auth_code.authorize_url(:redirect_uri => "#{ENV['REDIRECT_URI']}")
     end
@@ -89,10 +89,10 @@ get '/oauth2callback' do
   @newuser.access_token = access_token.token
   @newuser.save
 
-   redirect to '/success'
+   redirect to '/courses'
 end
 
-get '/success' do
+get '/courses' do
 
   courses_api     = ("#{ENV['CANVAS_URL']}/api/v1/courses?access_token=#{current_token}")
 
@@ -100,7 +100,9 @@ get '/success' do
   courses = canvas_response.parsed_response
   @coursestaught = courses.select{|course| course["enrollments"].flat_map{|x| x["type"]}.include? "teacher"}
 
+  erb :layout do
     erb :success
+  end  
 end
 
 get '/courses/:course_id' do

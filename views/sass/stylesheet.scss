@@ -2,6 +2,8 @@
 @import "neat/neat";
 @import "neat/neat-helpers";
 
+body {font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;}
+
 section {
   @include outer-container;
   text-align: center;
@@ -17,4 +19,3 @@ section {
     }
 }
 
-h1 {font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;}
