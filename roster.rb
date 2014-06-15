@@ -5,6 +5,7 @@ require 'sass'
 require 'dotenv'
 require 'data_mapper'
 require 'rack-lti'
+require 'pry'
 
 Dotenv.load
 enable :sessions
@@ -22,6 +23,13 @@ class User
   property :access_token, String
 end
 
+class Nonce
+  include DataMapper::Resource
+  property :id, Serial, :key => false
+  property :oauth_nonce, String, :key => true
+  property :timestamp, DateTime 
+end 
+
 DataMapper.finalize
 DataMapper.auto_upgrade!
 
@@ -38,6 +46,10 @@ DataMapper.auto_upgrade!
 
     # This is the URL clients (e.g. Canvas) will POST launch requests to.
     launch_path: '/lti/launch',
+
+    nonce_validator: ->(nonce) {
+      Nonce.get(nonce).nil? && Nonce.create(:oauth_nonce => nonce, :timestamp => DateTime.now)
+    },
 
     # Fail request older than 1 hour.
     time_limit: 3_600, # one hour
@@ -66,11 +78,8 @@ Student photos for courses in which the user is a teacher.
     END
 
 
-
 client = OAuth2::Client.new("#{ENV['CANVAS_ID']}", "#{ENV['CANVAS_KEY']}", :site => "#{ENV['CANVAS_URL']}", :authorize_url => "#{ENV['CANVAS_URL']}/login/oauth2/auth",
       :token_url => "#{ENV['CANVAS_URL']}/login/oauth2/token")
-
-
 
 get '/oauth/launch' do
     if stored_user
@@ -84,10 +93,7 @@ get '/oauth2callback' do
   access_token = client.auth_code.get_token(params[:code], :redirect_uri => "#{ENV['REDIRECT_URI']}")
   session[:access_token] = access_token.token
   
-  @newuser = User.new
-  @newuser.user_id = session[:user]
-  @newuser.access_token = access_token.token
-  @newuser.save
+  User.create(:user_id => session[:user], :access_token => access_token.token)
 
    redirect to '/courses'
 end
