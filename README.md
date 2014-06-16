@@ -1,9 +1,8 @@
-Proof of concept for basic photo roster integration with Canvas LMS
+Proof of concept for Oauth2 integration with <a href = "https://canvas.instructure.com/doc/api/index.html">Canvas LMS</a> using a photo roster
 
-Needs to be done before production use:
-	-Get a better understanding of Oauth2 security
-	-Access token encryption
-	-Basic error handling
-
+<ul>Needs to be done before production use:
+	<li>Access token encryption in database</li>
+	<li>Basic error handling</li>
+</ul>
 
 Auth structure heavily borrowed from https://github.com/zachpendleton/oauth_example
